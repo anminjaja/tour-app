@@ -1,24 +1,12 @@
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-  background-color: #f8fafc;
-  color: #1e293b;
-}
-
 .container {
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 40px 20px;
 }
 
 .header {
   text-align: center;
-  margin-bottom: 36px;
+  margin-bottom: 30px;
 }
 
 .header h1 {
@@ -30,81 +18,92 @@ body {
 
 .header p {
   color: #64748b;
-  margin-bottom: 24px;
-}
-
-.select-box-wrap {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 600;
-}
-
-.area-select {
-  padding: 8px 16px;
   font-size: 1rem;
+}
+
+.control-panel {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.control-panel label {
+  font-weight: 600;
+  color: #334155;
+  font-size: 1rem;
+}
+
+/* ★ 글씨가 안 보이는 현상 해결: 배경과 글자색을 명시적으로 고정 */
+.area-select {
+  padding: 10px 16px;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #1e293b !important;
+  background-color: #ffffff !important;
+  border: 1.5px solid #cbd5e1;
   border-radius: 8px;
-  border: 1px solid #cbd5e1;
-  background-color: #ffffff;
-  cursor: pointer;
   outline: none;
+  cursor: pointer;
+  min-width: 180px;
+}
+
+.area-select option {
+  color: #1e293b !important;
+  background-color: #ffffff !important;
 }
 
 .area-select:focus {
-  border-color: #3b82f6;
-  ring: 2px solid #93c5fd;
+  border-color: #2563eb;
 }
 
+/* 관광지 섹션 타이틀 */
 .section-title {
-  font-size: 1.3rem;
-  font-weight: 600;
-  margin-bottom: 20px;
-  color: #334155;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 30px 0 20px;
+  text-align: center;
 }
 
+/* ★ 한 번에 여러 개 볼 수 있는 반응형 3~4열 카드 그리드 */
 .grid-container {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 24px;
+  width: 100%;
 }
 
+/* 개별 카드 서식 */
 .card {
   background: #ffffff;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  transform: translateY(-5px);
+  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.1);
 }
 
 .image-wrapper {
   width: 100%;
-  height: 180px;
-  background-color: #e2e8f0;
+  height: 190px;
+  background-color: #f1f5f9;
+  overflow: hidden;
 }
 
 .card-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-.no-image {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  color: #94a3b8;
-  gap: 6px;
-  font-size: 0.85rem;
+  display: block;
 }
 
 .card-body {
@@ -115,39 +114,16 @@ body {
 }
 
 .card-title {
-  font-size: 1.05rem;
-  font-weight: 600;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
   margin-bottom: 8px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.3;
 }
 
 .card-address {
   font-size: 0.85rem;
   color: #64748b;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.pin-icon {
-  flex-shrink: 0;
-}
-
-.status-box, .empty-state, .no-result {
-  text-align: center;
-  padding: 60px 20px;
-  color: #64748b;
-}
-
-.spinner {
-  animation: spin 1s linear infinite;
-  margin-bottom: 12px;
-}
-
-@keyframes spin {
-  100% {
-    transform: rotate(360deg);
-  }
+  line-height: 1.4;
+  margin-top: auto;
 }

@@ -1,58 +1,52 @@
-import React, { useState, useEffect } from 'react';
-import { db } from './firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { MapPin, ImageOff, Loader2 } from 'lucide-react';
-import './App.css';
+import React, { useState, useEffect } from "react";
+import { ref, set, get, child } from "firebase/database";
+import { db } from "./firebase";
+import "./App.css";
 
-// 한국관광공사 지역 코드 목록 (주요 17개 시도)
-const AREA_CODES = [
-  { code: '1', name: '서울' },
-  { code: '2', name: '인천' },
-  { code: '3', name: '대전' },
-  { code: '4', name: '대구' },
-  { code: '5', name: '광주' },
-  { code: '6', name: '부산' },
-  { code: '7', name: '울산' },
-  { code: '8', name: '세종' },
-  { code: '31', name: '경기도' },
-  { code: '32', name: '강원도' },
-  { code: '33', name: '충청북도' },
-  { code: '34', name: '충청남도' },
-  { code: '35', name: '경상북도' },
-  { code: '36', name: '경상남도' },
-  { code: '37', name: '전라북도' },
-  { code: '38', name: '전라남도' },
-  { code: '39', name: '제주도' }
+const TOUR_API_KEY = "bd21b12db0e288c3985b09ce34dad04c43e57ea2693be743697926278f106d4d";
+
+const REGIONS = [
+  { code: "1", name: "서울" },
+  { code: "2", name: "인천" },
+  { code: "3", name: "대전" },
+  { code: "4", name: "대구" },
+  { code: "5", name: "광주" },
+  { code: "6", name: "부산" },
+  { code: "7", name: "울산" },
+  { code: "8", name: "세종특별자치시" },
+  { code: "31", name: "경기도" },
+  { code: "32", name: "강원특별자치도" },
+  { code: "39", name: "제주도" }
 ];
 
 export default function App() {
-  const [selectedArea, setSelectedArea] = useState(null);
+  const [selectedArea, setSelectedArea] = useState("");
+  const [selectedAreaName, setSelectedAreaName] = useState("");
   const [tourList, setTourList] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [initialChecked, setInitialChecked] = useState(false);
+  const [showSection, setShowSection] = useState(false);
 
-  // TourAPI 지역기반 관광정보 조회
+  // 1. 공공데이터포털 TourAPI 호출
   const fetchTourData = async (areaCode) => {
     setLoading(true);
-    const serviceKey = import.meta.env.VITE_TOUR_API_KEY;
-    const endpoint = 'https://apis.data.go.kr/B551011/KorService2/areaBasedList2';
-    
+    const endpoint = "https://apis.data.go.kr/B551011/KorService2/areaBasedList2";
     const params = new URLSearchParams({
-      serviceKey: serviceKey,
-      numOfRows: '12',
-      pageNo: '1',
-      MobileOS: 'ETC',
-      MobileApp: 'TourWeb',
-      _type: 'json',
-      arrange: 'O', // 제목순 정렬
-      areaCode: areaCode
+      serviceKey: TOUR_API_KEY,
+      numOfRows: "12",
+      pageNo: "1",
+      MobileOS: "ETC",
+      MobileApp: "TourApp",
+      _type: "json",
+      areaCode: areaCode,
+      arrange: "Q"
     });
 
     try {
       const response = await fetch(`${endpoint}?${params.toString()}`);
+      if (!response.ok) throw new Error("API 응답 실패");
       const data = await response.json();
-      
-      const items = data?.response?.body?.items?.item;
+      const items = data.response?.body?.items?.item;
+
       if (Array.isArray(items)) {
         setTourList(items);
       } else if (items) {
@@ -60,139 +54,118 @@ export default function App() {
       } else {
         setTourList([]);
       }
+      setShowSection(true);
     } catch (error) {
-      console.error('관광데이터 API 호출 에러:', error);
+      console.error("데이터 로드 실패:", error);
       setTourList([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // 1. 초기 렌더링 시 Firebase에서 최근 선택된 지역 정보 읽기
-  useEffect(() => {
-    const loadUserSavedArea = async () => {
-      try {
-        const docRef = doc(db, 'user_settings', 'current_state');
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-          const savedData = docSnap.data();
-          if (savedData?.areaCode) {
-            setSelectedArea(savedData.areaCode);
-            await fetchTourData(savedData.areaCode);
-          }
-        }
-      } catch (err) {
-        console.error('Firebase 로드 에러:', err);
-      } finally {
-        setInitialChecked(true);
-      }
-    };
-
-    loadUserSavedArea();
-  }, []);
-
-  // 2. 지역 선택 변경 핸들러 (Firestore 업데이트 + API 재호출)
-  const handleAreaChange = async (e) => {
-    const areaCode = e.target.value;
-    if (!areaCode) return;
-
-    const areaObj = AREA_CODES.find((item) => item.code === areaCode);
-    setSelectedArea(areaCode);
-
-    // Firebase Firestore에 저장/덮어쓰기
+  // 2. Firebase Realtime Database 저장
+  const saveRegionToFirebase = async (areaCode, areaName) => {
     try {
-      await setDoc(doc(db, 'user_settings', 'current_state'), {
+      await set(ref(db, "userActivity/selectedRegion"), {
         areaCode: areaCode,
-        areaName: areaObj ? areaObj.name : '',
+        areaName: areaName,
         updatedAt: new Date().toISOString()
       });
     } catch (err) {
-      console.error('Firebase 저장 에러:', err);
+      console.error("Firebase 저장 실패:", err);
+    }
+  };
+
+  // 3. 첫 진입 시 저장된 데이터 복원
+  useEffect(() => {
+    const initData = async () => {
+      try {
+        const dbRef = ref(db);
+        const snapshot = await get(child(dbRef, "userActivity/selectedRegion"));
+
+        if (snapshot.exists()) {
+          const savedData = snapshot.val();
+          setSelectedArea(savedData.areaCode);
+          setSelectedAreaName(savedData.areaName);
+          fetchTourData(savedData.areaCode);
+        } else {
+          setShowSection(false);
+        }
+      } catch (err) {
+        console.error("초기 데이터 복원 실패:", err);
+        setShowSection(false);
+      }
+    };
+
+    initData();
+  }, []);
+
+  // 4. 지역 선택 변경 핸들러
+  const handleAreaChange = (e) => {
+    const code = e.target.value;
+    const regionObj = REGIONS.find((r) => r.code === code);
+
+    if (!code) {
+      setSelectedArea("");
+      setSelectedAreaName("");
+      setShowSection(false);
+      return;
     }
 
-    // 데이터 조회
-    fetchTourData(areaCode);
+    const name = regionObj ? regionObj.name : "";
+    setSelectedArea(code);
+    setSelectedAreaName(name);
+
+    saveRegionToFirebase(code, name);
+    fetchTourData(code);
   };
 
   return (
     <div className="container">
       <header className="header">
-        <h1>대한민국 구석구석 관광지 뷰어</h1>
-        <p>원하는 지역을 선택하면 관광 명소 목록과 이미지를 확인할 수 있습니다.</p>
+        <h1>지역별 관광명소 탐색</h1>
+        <p>선택하신 지역 정보는 자동으로 동기화되어 저장됩니다.</p>
 
         <div className="select-box-wrap">
-          <label htmlFor="area-select">지역 선택: </label>
-          <select 
-            id="area-select" 
-            value={selectedArea || ''} 
-            onChange={handleAreaChange}
-            className="area-select"
-          >
-            <option value="" disabled>지역을 선택해주세요</option>
-            {AREA_CODES.map((area) => (
-              <option key={area.code} value={area.code}>
-                {area.name}
+          <label htmlFor="areaSelect">지역 선택: </label>
+          <select id="areaSelect" value={selectedArea} onChange={handleAreaChange} className="area-select">
+            <option value="">-- 지역을 선택하세요 --</option>
+            {REGIONS.map((region) => (
+              <option key={region.code} value={region.code}>
+                {region.name}
               </option>
             ))}
           </select>
         </div>
       </header>
 
-      {/* 로딩 인디케이터 */}
-      {loading && (
-        <div className="status-box">
-          <Loader2 className="spinner" />
-          <p>관광지 정보를 불러오는 중입니다...</p>
-        </div>
-      )}
+      {loading && <p style={{ textAlign: "center", margin: "20px 0" }}>관광지 정보를 불러오는 중입니다...</p>}
 
-      {/* 저장된 지역이 없고 로딩 중이 아닐 때 안내 화면 */}
-      {!selectedArea && initialChecked && !loading && (
-        <div className="empty-state">
-          <p>선택된 지역 정보가 없습니다. 상단에서 지역을 먼저 선택해 주세요.</p>
-        </div>
-      )}
-
-      {/* 시각화된 목록 뷰 (선택된 지역이 있을 때만 표출) */}
-      {selectedArea && !loading && (
+      {showSection && !loading && (
         <main className="content-area">
-          <h2 className="section-title">
-            📍 {AREA_CODES.find((a) => a.code === selectedArea)?.name} 관광 명소
-          </h2>
-
-          {tourList.length === 0 ? (
-            <p className="no-result">해당 지역의 조회된 관광 정보가 없습니다.</p>
-          ) : (
-            <div className="grid-container">
-              {tourList.map((item) => (
-                <div key={item.contentid} className="card">
+          <h2 className="section-title">📍 {selectedAreaName} 관광지 추천</h2>
+          <div className="grid-container">
+            {tourList.length === 0 ? (
+              <p style={{ gridColumn: "1/-1", textAlign: "center" }}>등록된 관광 정보가 없습니다.</p>
+            ) : (
+              tourList.map((item, idx) => (
+                <div key={item.contentid || idx} className="card">
                   <div className="image-wrapper">
-                    {item.firstimage || item.firstimage2 ? (
-                      <img
-                        src={item.firstimage || item.firstimage2}
-                        alt={item.title}
-                        loading="lazy"
-                        className="card-image"
-                      />
-                    ) : (
-                      <div className="no-image">
-                        <ImageOff size={32} />
-                        <span>이미지 없음</span>
-                      </div>
-                    )}
+                    <img
+                      src={item.firstimage || item.firstimage2 || "https://placehold.co/400x250?text=No+Image"}
+                      alt={item.title}
+                      loading="lazy"
+                      className="card-image"
+                    />
                   </div>
                   <div className="card-body">
                     <h3 className="card-title">{item.title}</h3>
-                    <p className="card-address">
-                      <MapPin size={14} className="pin-icon" />
-                      {item.addr1 || '주소 정보 없음'}
-                    </p>
+                    <p className="card-address">{item.addr1 || "주소 정보 없음"}</p>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+              ))
+            )}
+          </div>
         </main>
       )}
     </div>
